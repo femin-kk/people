@@ -85,7 +85,8 @@ class Repository(private val db: AppDatabase) {
 
     // --- Notes ---
     fun observeNotesForPerson(personId: Long): Flow<List<Note>> = noteDao.observeForPerson(personId)
-    suspend fun addNote(personId: Long, text: String) = noteDao.insert(Note(personId = personId, text = text))
+    suspend fun addNote(personId: Long, text: String, eventAt: Long? = null) =
+        noteDao.insert(Note(personId = personId, text = text, eventAt = eventAt))
     suspend fun updateNote(note: Note) = noteDao.update(note)
     suspend fun deleteNote(note: Note) = noteDao.delete(note)
 
