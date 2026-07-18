@@ -183,7 +183,7 @@ interface NoteDao {
     @Delete
     suspend fun delete(note: Note)
 
-    @Query("SELECT * FROM notes WHERE personId = :personId ORDER BY createdAt DESC")
+    @Query("SELECT * FROM notes WHERE personId = :personId ORDER BY COALESCE(eventAt, createdAt) DESC")
     fun observeForPerson(personId: Long): Flow<List<Note>>
 }
 
