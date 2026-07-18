@@ -115,9 +115,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     // --- Notes ---
     fun observeNotesForPerson(personId: Long): Flow<List<Note>> = repo.observeNotesForPerson(personId)
 
-    fun addNote(personId: Long, text: String) {
+    fun addNote(personId: Long, text: String, eventAt: Long? = null) {
         if (text.isBlank()) return
-        viewModelScope.launch { repo.addNote(personId, text) }
+        viewModelScope.launch { repo.addNote(personId, text, eventAt) }
     }
 
     fun updateNote(note: Note) {
