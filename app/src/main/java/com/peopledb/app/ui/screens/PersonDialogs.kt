@@ -178,29 +178,127 @@ fun AddRelationshipDialog(
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AddNoteDialog(
+fun NoteDialog(
+    initialText: String = "",
+    initialEventAt: Long? = null,
+    title: String = "Add note",
     onDismiss: () -> Unit,
-    onConfirm: (text: String) -> Unit
+    onConfirm: (text: String, eventAt: Long?) -> Unit
 ) {
-    var text by remember { mutableStateOf("") }
+    val zone = java.time.ZoneId.systemDefault()
+    val initialDateTime = initialEventAt?.let {
+        java.time.Instant.ofEpochMilli(it).atZone(zone).toLocalDateTime()
+    }
+
+    var text by remember { mutableStateOf(initialText) }
+    var useCustomDate by remember { mutableStateOf(initialEventAt != null) }
+    var date by remember { mutableStateOf(initialDateTime?.toLocalDate() ?: java.time.LocalDate.now()) }
+    var hourText by remember { mutableStateOf((initialDateTime?.hour ?: java.time.LocalTime.now().hour).toString()) }
+    var minuteText by remember { mutableStateOf((initialDateTime?.minute ?: 0).toString().padStart(2, '0')) }
+    var showDatePicker by remember { mutableStateOf(false) }
+
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Add note") },
+        title = { Text(title) },
         text = {
-            OutlinedTextField(
-                value = text,
-                onValueChange = { text = it },
-                label = { Text("Note") },
-                modifier = Modifier.fillMaxWidth(),
-                minLines = 3
-            )
+            Column {
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    label = { Text("Note") },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 3
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                    androidx.compose.material3.Checkbox(
+                        checked = useCustomDate,
+                        onCheckedChange = { useCustomDate = it }
+                    )
+                    Text("Set a specific date & time")
+                }
+                if (!useCustomDate) {
+                    Text(
+                        if (initialEventAt == null) "This note will be timestamped now."
+                        else "Switching this off will use the note's original creation time.",
+                        style = androidx.compose.material3.MaterialTheme.typography.bodySmall
+                    )
+                } else {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                        Text(date.toString(), modifier = Modifier.weight(1f))
+                        OutlinedButton(onClick = { showDatePicker = true }) { Text("Change date") }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                        OutlinedTextField(
+                            value = hourText,
+                            onValueChange = { v ->
+                                val digits = v.filter { it.isDigit() }.take(2)
+                                hourText = digits
+                            },
+                            label = { Text("Hour (0-23)") },
+                            singleLine = true,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        OutlinedTextField(
+                            value = minuteText,
+                            onValueChange = { v ->
+                                val digits = v.filter { it.isDigit() }.take(2)
+                                minuteText = digits
+                            },
+                            label = { Text("Minute (0-59)") },
+                            singleLine = true,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+            }
         },
         confirmButton = {
-            Button(onClick = { onConfirm(text.trim()) }, enabled = text.isNotBlank()) { Text("Add") }
+            Button(
+                onClick = {
+                    val eventAt = if (useCustomDate) {
+                        val hour = (hourText.toIntOrNull() ?: 0).coerceIn(0, 23)
+                        val minute = (minuteText.toIntOrNull() ?: 0).coerceIn(0, 59)
+                        java.time.LocalDateTime.of(date, java.time.LocalTime.of(hour, minute))
+                            .atZone(zone)
+                            .toInstant()
+                            .toEpochMilli()
+                    } else {
+                        null
+                    }
+                    onConfirm(text.trim(), eventAt)
+                },
+                enabled = text.isNotBlank()
+            ) { Text("Save") }
         },
         dismissButton = {
             OutlinedButton(onClick = onDismiss) { Text("Cancel") }
         }
     )
+
+    if (showDatePicker) {
+        val initialMillis = date.atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli()
+        val datePickerState = androidx.compose.material3.rememberDatePickerState(initialSelectedDateMillis = initialMillis)
+        androidx.compose.material3.DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                Button(onClick = {
+                    datePickerState.selectedDateMillis?.let { millis ->
+                        date = java.time.Instant.ofEpochMilli(millis).atZone(java.time.ZoneOffset.UTC).toLocalDate()
+                    }
+                    showDatePicker = false
+                }) { Text("OK") }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { showDatePicker = false }) { Text("Cancel") }
+            }
+        ) {
+            androidx.compose.material3.DatePicker(state = datePickerState)
+        }
+    }
 }
