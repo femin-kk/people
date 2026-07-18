@@ -309,6 +309,9 @@ fun PersonDetailScreen(
             onConfirm = { relatedId, type ->
                 viewModel.addRelationship(personId, relatedId, type)
                 showAddRelationship = false
+            },
+            onCreatePerson = { name, onCreated ->
+                viewModel.addPerson(name, null, true, onCreated)
             }
         )
     }
