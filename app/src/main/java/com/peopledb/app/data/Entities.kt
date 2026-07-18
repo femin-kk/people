@@ -82,7 +82,10 @@ data class Note(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val personId: Long,
     val text: String,
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
+    // Optional user-set date/time this note is "about" (e.g. logging something that
+    // happened in the past). When null, createdAt is used for display purposes.
+    val eventAt: Long? = null
 )
 
 @Entity(
