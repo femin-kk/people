@@ -90,6 +90,7 @@ fun PersonDetailScreen(
     var showAddTag by remember { mutableStateOf(false) }
     var showAddRelationship by remember { mutableStateOf(false) }
     var showAddNote by remember { mutableStateOf(false) }
+    var editingNote by remember { mutableStateOf<Note?>(null) }
 
     val context = androidx.compose.ui.platform.LocalContext.current
     val photoPicker = rememberLauncherForActivityResult(
@@ -253,7 +254,11 @@ fun PersonDetailScreen(
                 Text("No notes yet.", style = MaterialTheme.typography.bodyMedium)
             } else {
                 notes.forEach { note ->
-                    NoteRow(note = note, onDelete = { viewModel.deleteNote(note) })
+                    NoteRow(
+                        note = note,
+                        onDelete = { viewModel.deleteNote(note) },
+                        onEdit = { editingNote = note }
+                    )
                 }
             }
 
@@ -309,11 +314,25 @@ fun PersonDetailScreen(
     }
 
     if (showAddNote) {
-        AddNoteDialog(
+        NoteDialog(
+            title = "Add note",
             onDismiss = { showAddNote = false },
-            onConfirm = { text ->
-                viewModel.addNote(personId, text)
+            onConfirm = { text, eventAt ->
+                viewModel.addNote(personId, text, eventAt)
                 showAddNote = false
+            }
+        )
+    }
+
+    editingNote?.let { note ->
+        NoteDialog(
+            title = "Edit note",
+            initialText = note.text,
+            initialEventAt = note.eventAt,
+            onDismiss = { editingNote = null },
+            onConfirm = { text, eventAt ->
+                viewModel.updateNote(note.copy(text = text, eventAt = eventAt))
+                editingNote = null
             }
         )
     }
@@ -364,7 +383,7 @@ private fun PhotoThumb(photo: Photo, isPrimary: Boolean, onSetPrimary: () -> Uni
 }
 
 @Composable
-private fun NoteRow(note: Note, onDelete: () -> Unit) {
+private fun NoteRow(note: Note, onDelete: () -> Unit, onEdit: () -> Unit) {
     Card(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(12.dp),
@@ -373,11 +392,15 @@ private fun NoteRow(note: Note, onDelete: () -> Unit) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(note.text)
                 Spacer(modifier = Modifier.height(4.dp))
+                val effectiveTime = note.eventAt ?: note.createdAt
                 Text(
-                    RelativeTime.format(note.createdAt),
+                    RelativeTime.format(effectiveTime),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+            }
+            IconButton(onClick = onEdit) {
+                Icon(Icons.Filled.Edit, contentDescription = "Edit note")
             }
             IconButton(onClick = onDelete) {
                 Icon(Icons.Filled.Close, contentDescription = "Delete note")
