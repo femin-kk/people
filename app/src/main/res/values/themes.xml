@@ -1,0 +1,3 @@
+<resources>
+    <style name="Theme.PeopleDB" parent="android:Theme.Material.Light.NoActionBar" />
+</resources>
