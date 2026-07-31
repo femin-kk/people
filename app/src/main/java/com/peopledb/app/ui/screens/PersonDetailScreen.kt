@@ -219,6 +219,7 @@ fun PersonDetailScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .clickable(onClick = { onOpenPerson(rel.relatedPersonId) })
                                 .padding(8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -230,12 +231,7 @@ fun PersonDetailScreen(
                             ) {
                                 Text(
                                     rel.relatedPersonName,
-                                    fontWeight = FontWeight.Medium,
-                                    modifier = Modifier.clickable(
-                                        interactionSource = remember { MutableInteractionSource() },
-                                        indication = null,
-                                        onClick = { onOpenPerson(rel.relatedPersonId) }
-                                    )
+                                    fontWeight = FontWeight.Medium
                                 )
                                 Text(rel.type, style = MaterialTheme.typography.bodySmall)
                             }
