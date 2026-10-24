@@ -15,7 +15,10 @@ data class Person(
     // placeholder year (e.g. 2000) but only month/day should be shown.
     val birthdayYearKnown: Boolean = true,
     val primaryPhotoPath: String? = null,
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
+    // "male", "female", or null if unset/unspecified. Used to resolve gendered
+    // relationship labels (son/daughter, father/mother, etc) for this person.
+    val gender: String? = null
 )
 
 @Entity(tableName = "tags")
@@ -68,7 +71,12 @@ data class Relationship(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val personId: Long,
     val relatedPersonId: Long,
-    val type: String
+    // Display label fallback, used as-is only when role is null (a custom/freeform relationship).
+    val type: String,
+    // Name of a RelationshipRole enum constant, or null for a custom/freeform relationship.
+    // When set, the displayed label is computed live from this role + the related person's
+    // current gender, rather than from the stored `type` text.
+    val role: String? = null
 )
 
 @Entity(

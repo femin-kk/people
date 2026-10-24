@@ -25,18 +25,18 @@ interface PersonDao {
     @Query("SELECT * FROM people WHERE id = :id")
     fun observeById(id: Long): Flow<Person?>
 
-    @Query("SELECT id, name, birthdayEpochDay, birthdayYearKnown, primaryPhotoPath FROM people ORDER BY name COLLATE NOCASE ASC")
+    @Query("SELECT id, name, birthdayEpochDay, birthdayYearKnown, primaryPhotoPath, gender FROM people ORDER BY name COLLATE NOCASE ASC")
     fun observeAll(): Flow<List<PersonSummary>>
 
     @Query("""
-        SELECT id, name, birthdayEpochDay, birthdayYearKnown, primaryPhotoPath FROM people
+        SELECT id, name, birthdayEpochDay, birthdayYearKnown, primaryPhotoPath, gender FROM people
         WHERE name LIKE '%' || :query || '%'
         ORDER BY name COLLATE NOCASE ASC
     """)
     fun searchByName(query: String): Flow<List<PersonSummary>>
 
     @Query("""
-        SELECT DISTINCT p.id, p.name, p.birthdayEpochDay, p.birthdayYearKnown, p.primaryPhotoPath
+        SELECT DISTINCT p.id, p.name, p.birthdayEpochDay, p.birthdayYearKnown, p.primaryPhotoPath, p.gender
         FROM people p
         INNER JOIN person_tags pt ON pt.personId = p.id
         WHERE pt.tagId = :tagId
@@ -45,7 +45,7 @@ interface PersonDao {
     fun getPeopleByTag(tagId: Long): Flow<List<PersonSummary>>
 
     @Query("""
-        SELECT DISTINCT p.id, p.name, p.birthdayEpochDay, p.birthdayYearKnown, p.primaryPhotoPath
+        SELECT DISTINCT p.id, p.name, p.birthdayEpochDay, p.birthdayYearKnown, p.primaryPhotoPath, p.gender
         FROM people p
         INNER JOIN person_places pp ON pp.personId = p.id
         WHERE pp.placeTagId = :tagId
@@ -160,7 +160,8 @@ interface RelationshipDao {
 
     @Query("""
         SELECT r.id as relationshipId, p.id as relatedPersonId, p.name as relatedPersonName,
-               p.primaryPhotoPath as relatedPersonPhotoPath, r.type as type
+               p.primaryPhotoPath as relatedPersonPhotoPath, p.gender as relatedPersonGender,
+               r.type as type, r.role as role
         FROM relationships r
         INNER JOIN people p ON p.id = r.relatedPersonId
         WHERE r.personId = :personId
@@ -170,6 +171,14 @@ interface RelationshipDao {
 
     @Query("SELECT * FROM relationships WHERE id = :id")
     suspend fun getById(id: Long): Relationship?
+
+    // The mirrored row on the other person's side of this same relationship pair.
+    @Query("""
+        SELECT * FROM relationships
+        WHERE personId = :relatedPersonId AND relatedPersonId = :personId
+        LIMIT 1
+    """)
+    suspend fun findReciprocal(personId: Long, relatedPersonId: Long): Relationship?
 }
 
 @Dao

@@ -15,8 +15,16 @@ data class RelationshipDetail(
     val relatedPersonId: Long,
     val relatedPersonName: String,
     val relatedPersonPhotoPath: String?,
-    val type: String
-)
+    val relatedPersonGender: String?,
+    val type: String,
+    val role: String?
+) {
+    /** The word to show for this relationship, computed live from role + the related person's gender. */
+    val displayLabel: String
+        get() = role?.let { roleName ->
+            runCatching { RelationshipRole.valueOf(roleName).labelFor(relatedPersonGender) }.getOrNull()
+        } ?: type
+}
 
 // A tag with a count of how many people are attached to it (via person_tags or person_places).
 data class TagWithCount(
@@ -31,5 +39,6 @@ data class PersonSummary(
     val name: String,
     val birthdayEpochDay: Long?,
     val birthdayYearKnown: Boolean,
-    val primaryPhotoPath: String?
+    val primaryPhotoPath: String?,
+    val gender: String? = null
 )

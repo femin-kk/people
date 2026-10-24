@@ -40,10 +40,16 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun searchPeopleByName(query: String): Flow<List<PersonSummary>> = repo.searchPeopleByName(query)
     fun observePerson(id: Long): Flow<Person?> = repo.observePerson(id)
 
-    fun addPerson(name: String, birthdayEpochDay: Long?, birthdayYearKnown: Boolean, onDone: (Long) -> Unit = {}) {
+    fun addPerson(
+        name: String,
+        birthdayEpochDay: Long?,
+        birthdayYearKnown: Boolean,
+        gender: String? = null,
+        onDone: (Long) -> Unit = {}
+    ) {
         viewModelScope.launch {
             val id = repo.addPerson(
-                Person(name = name, birthdayEpochDay = birthdayEpochDay, birthdayYearKnown = birthdayYearKnown)
+                Person(name = name, birthdayEpochDay = birthdayEpochDay, birthdayYearKnown = birthdayYearKnown, gender = gender)
             )
             onDone(id)
         }
@@ -103,9 +109,18 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     // --- Relationships ---
     fun observeRelationshipsForPerson(personId: Long): Flow<List<RelationshipDetail>> = repo.observeRelationshipsForPerson(personId)
 
-    fun addRelationship(personId: Long, relatedPersonId: Long, type: String) {
-        if (type.isBlank() || personId == relatedPersonId) return
-        viewModelScope.launch { repo.addRelationship(personId, relatedPersonId, type) }
+    fun addRelationship(
+        personId: Long,
+        relatedPersonId: Long,
+        role: com.peopledb.app.data.RelationshipRole?,
+        label: String,
+        impliedGenderForRelated: String? = null,
+        ownGenderIfProvided: String? = null
+    ) {
+        if (label.isBlank() || personId == relatedPersonId) return
+        viewModelScope.launch {
+            repo.addRelationship(personId, relatedPersonId, role, label, impliedGenderForRelated, ownGenderIfProvided)
+        }
     }
 
     fun deleteRelationship(relationshipId: Long) {

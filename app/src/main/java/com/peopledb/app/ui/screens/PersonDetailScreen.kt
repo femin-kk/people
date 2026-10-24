@@ -233,7 +233,7 @@ fun PersonDetailScreen(
                                     rel.relatedPersonName,
                                     fontWeight = FontWeight.Medium
                                 )
-                                Text(rel.type, style = MaterialTheme.typography.bodySmall)
+                                Text(rel.displayLabel, style = MaterialTheme.typography.bodySmall)
                             }
                             IconButton(onClick = { viewModel.deleteRelationship(rel.relationshipId) }) {
                                 Icon(Icons.Filled.Close, contentDescription = "Remove")
@@ -298,16 +298,18 @@ fun PersonDetailScreen(
         )
     }
 
-    if (showAddRelationship) {
+    if (showAddRelationship && p != null) {
         AddRelationshipDialog(
             people = allPeople.filter { it.id != personId },
+            currentPersonName = p.name,
+            currentPersonGender = p.gender,
             onDismiss = { showAddRelationship = false },
-            onConfirm = { relatedId, type ->
-                viewModel.addRelationship(personId, relatedId, type)
+            onConfirm = { relatedId, role, label, impliedGenderForRelated, ownGenderIfProvided ->
+                viewModel.addRelationship(personId, relatedId, role, label, impliedGenderForRelated, ownGenderIfProvided)
                 showAddRelationship = false
             },
             onCreatePerson = { name, onCreated ->
-                viewModel.addPerson(name, null, true, onCreated)
+                viewModel.addPerson(name, null, true, onDone = onCreated)
             }
         )
     }

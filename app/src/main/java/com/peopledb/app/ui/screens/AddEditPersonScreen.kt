@@ -60,6 +60,7 @@ fun AddEditPersonScreen(
     var birthdayEpochDay by remember { mutableStateOf<Long?>(null) }
     var yearKnown by remember { mutableStateOf(true) }
     var photoPath by remember { mutableStateOf<String?>(null) }
+    var gender by remember { mutableStateOf<String?>(null) }
     var showDatePicker by remember { mutableStateOf(false) }
     var initialized by remember { mutableStateOf(false) }
 
@@ -69,6 +70,7 @@ fun AddEditPersonScreen(
             birthdayEpochDay = existingPerson!!.birthdayEpochDay
             yearKnown = existingPerson!!.birthdayYearKnown
             photoPath = existingPerson!!.primaryPhotoPath
+            gender = existingPerson!!.gender
             initialized = true
         }
     }
@@ -151,13 +153,38 @@ fun AddEditPersonScreen(
                 Text("Year unknown (only show month/day)")
             }
 
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text("Gender", style = MaterialTheme.typography.labelLarge)
+            Text(
+                "Used to automatically word relationships (son/daughter, father/mother, etc).",
+                style = MaterialTheme.typography.bodySmall
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Row(modifier = Modifier.fillMaxWidth()) {
+                listOf("male" to "Male", "female" to "Female", null to "Unspecified").forEach { (value, label) ->
+                    val selected = gender == value
+                    if (selected) {
+                        Button(
+                            onClick = { gender = value },
+                            modifier = Modifier.weight(1f).padding(end = 4.dp)
+                        ) { Text(label) }
+                    } else {
+                        OutlinedButton(
+                            onClick = { gender = value },
+                            modifier = Modifier.weight(1f).padding(end = 4.dp)
+                        ) { Text(label) }
+                    }
+                }
+            }
+
             Spacer(modifier = Modifier.height(32.dp))
 
             Button(
                 onClick = {
                     if (name.isNotBlank()) {
                         if (personId == null) {
-                            viewModel.addPerson(name.trim(), birthdayEpochDay, yearKnown) { newId ->
+                            viewModel.addPerson(name.trim(), birthdayEpochDay, yearKnown, gender) { newId ->
                                 photoPath?.let { path -> viewModel.setPrimaryPhoto(newId, path) }
                             }
                         } else {
@@ -168,7 +195,8 @@ fun AddEditPersonScreen(
                                     birthdayEpochDay = birthdayEpochDay,
                                     birthdayYearKnown = yearKnown,
                                     primaryPhotoPath = photoPath,
-                                    createdAt = existingPerson?.createdAt ?: System.currentTimeMillis()
+                                    createdAt = existingPerson?.createdAt ?: System.currentTimeMillis(),
+                                    gender = gender
                                 )
                             )
                         }

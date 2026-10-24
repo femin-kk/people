@@ -2,7 +2,6 @@ package com.peopledb.app.ui.screens
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -20,7 +19,9 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -29,10 +30,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.unit.dp
 import com.peopledb.app.data.PersonSummary
+import com.peopledb.app.data.RelationshipRole
+import com.peopledb.app.data.RelationshipTemplates
 
 @Composable
 fun AddPlaceDialog(
@@ -119,14 +123,28 @@ fun AddTagDialog(
 @Composable
 fun AddRelationshipDialog(
     people: List<PersonSummary>,
+    currentPersonName: String,
+    currentPersonGender: String?,
     onDismiss: () -> Unit,
-    onConfirm: (relatedPersonId: Long, type: String) -> Unit,
+    onConfirm: (
+        relatedPersonId: Long,
+        role: RelationshipRole?,
+        label: String,
+        impliedGenderForRelated: String?,
+        ownGenderIfProvided: String?
+    ) -> Unit,
     onCreatePerson: (name: String, onCreated: (Long) -> Unit) -> Unit
 ) {
     var query by remember { mutableStateOf("") }
     var selected by remember { mutableStateOf<PersonSummary?>(null) }
     var showList by remember { mutableStateOf(false) }
-    var type by remember { mutableStateOf("") }
+
+    var chosenRole by remember { mutableStateOf<RelationshipRole?>(null) }
+    var chosenLabel by remember { mutableStateOf<String?>(null) }
+    var chosenImpliedGender by remember { mutableStateOf<String?>(null) }
+    var useCustom by remember { mutableStateOf(false) }
+    var customLabel by remember { mutableStateOf("") }
+    var ownGenderChoice by remember { mutableStateOf<String?>(null) }
 
     val filtered = remember(query, people) {
         if (query.isBlank()) people else people.filter { it.name.contains(query, ignoreCase = true) }
@@ -135,13 +153,20 @@ fun AddRelationshipDialog(
         people.any { it.name.equals(query.trim(), ignoreCase = true) }
     }
 
+    // Does the reciprocal side (what *this* person is to the related person) actually
+    // read differently by gender, and do we not already know this person's gender?
+    val needsOwnGenderPrompt = !useCustom &&
+        chosenRole != null &&
+        chosenRole!!.reciprocal().isGendered() &&
+        currentPersonGender == null
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Add relationship") },
         text = {
             Column(
                 modifier = Modifier
-                    .heightIn(max = 420.dp)
+                    .heightIn(max = 460.dp)
                     .verticalScroll(rememberScrollState())
             ) {
                 OutlinedTextField(
@@ -193,7 +218,7 @@ fun AddRelationshipDialog(
                             }
                             if (query.isNotBlank() && !exactMatchExists) {
                                 Row(
-                                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                                    verticalAlignment = Alignment.CenterVertically,
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .clickable(
@@ -225,20 +250,102 @@ fun AddRelationshipDialog(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = type,
-                    onValueChange = { type = it },
-                    label = { Text("Relationship (e.g. Sibling, Friend)") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
+                if (selected != null) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text("Relationship to ${selected!!.name}", style = MaterialTheme.typography.labelLarge)
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    RelationshipTemplates.groups.forEach { (groupName, templates) ->
+                        Text(
+                            groupName,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 6.dp, bottom = 2.dp)
+                        )
+                        templates.chunked(3).forEach { rowTemplates ->
+                            Row(modifier = Modifier.fillMaxWidth()) {
+                                rowTemplates.forEach { template ->
+                                    val isChosen = !useCustom && chosenRole == template.role && chosenLabel == template.label
+                                    FilterChip(
+                                        selected = isChosen,
+                                        onClick = {
+                                            useCustom = false
+                                            chosenRole = template.role
+                                            chosenLabel = template.label
+                                            chosenImpliedGender = template.impliesGender
+                                        },
+                                        label = { Text(template.label) },
+                                        modifier = Modifier.padding(end = 4.dp, bottom = 4.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+                    FilterChip(
+                        selected = useCustom,
+                        onClick = {
+                            useCustom = true
+                            chosenRole = null
+                            chosenLabel = null
+                            chosenImpliedGender = null
+                        },
+                        label = { Text("Custom…") }
+                    )
+                    if (useCustom) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = customLabel,
+                            onValueChange = { customLabel = it },
+                            label = { Text("Relationship (e.g. Mentor, Roommate)") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+
+                    if (!useCustom && chosenImpliedGender != null && selected!!.gender == null) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "This will set ${selected!!.name}'s gender to " +
+                                (if (chosenImpliedGender == "male") "male" else "female") + ".",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    if (needsOwnGenderPrompt) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            "What's $currentPersonName's gender? This decides how the relationship reads on ${selected!!.name}'s page (e.g. Father vs Mother).",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Row(modifier = Modifier.fillMaxWidth()) {
+                            listOf("male" to "Male", "female" to "Female", null to "Skip").forEach { (value, label) ->
+                                FilterChip(
+                                    selected = ownGenderChoice == value,
+                                    onClick = { ownGenderChoice = value },
+                                    label = { Text(label) },
+                                    modifier = Modifier.padding(end = 4.dp)
+                                )
+                            }
+                        }
+                    }
+                }
             }
         },
         confirmButton = {
+            val canConfirm = selected != null && (
+                (!useCustom && chosenRole != null) || (useCustom && customLabel.isNotBlank())
+            )
             Button(
-                onClick = { selected?.let { onConfirm(it.id, type.trim()) } },
-                enabled = selected != null && type.isNotBlank()
+                onClick = {
+                    val person = selected ?: return@Button
+                    val label = if (useCustom) customLabel.trim() else (chosenLabel ?: "")
+                    onConfirm(person.id, if (useCustom) null else chosenRole, label, chosenImpliedGender, ownGenderChoice)
+                },
+                enabled = canConfirm
             ) { Text("Add") }
         },
         dismissButton = {

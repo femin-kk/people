@@ -71,16 +71,46 @@ class Repository(private val db: AppDatabase) {
     // --- Relationships ---
     fun observeRelationshipsForPerson(personId: Long): Flow<List<RelationshipDetail>> = relationshipDao.observeForPerson(personId)
 
-    suspend fun addRelationship(personId: Long, relatedPersonId: Long, type: String, mirror: Boolean = true) {
-        relationshipDao.insert(Relationship(personId = personId, relatedPersonId = relatedPersonId, type = type))
-        if (mirror) {
-            relationshipDao.insert(Relationship(personId = relatedPersonId, relatedPersonId = personId, type = type))
+    /**
+     * Adds a relationship and its automatic reciprocal (e.g. "Son" on one side creates
+     * "Father"/"Mother"/"Parent" on the other, based on [role]). [label] is the fallback text
+     * stored on the forward row — used verbatim only when [role] is null (a custom relationship).
+     * [impliedGenderForRelated] (if non-null) sets the related person's gender when it's unset
+     * (e.g. picking "Son" implies male). [ownGenderIfProvided] (if non-null) sets this person's
+     * own gender when it's unset — needed so the reciprocal side reads correctly.
+     */
+    suspend fun addRelationship(
+        personId: Long,
+        relatedPersonId: Long,
+        role: RelationshipRole?,
+        label: String,
+        impliedGenderForRelated: String? = null,
+        ownGenderIfProvided: String? = null
+    ) {
+        if (impliedGenderForRelated != null) {
+            personDao.getById(relatedPersonId)?.let { related ->
+                if (related.gender == null) personDao.update(related.copy(gender = impliedGenderForRelated))
+            }
         }
+        if (ownGenderIfProvided != null) {
+            personDao.getById(personId)?.let { me ->
+                if (me.gender == null) personDao.update(me.copy(gender = ownGenderIfProvided))
+            }
+        }
+
+        relationshipDao.insert(Relationship(personId = personId, relatedPersonId = relatedPersonId, type = label, role = role?.name))
+        val reciprocalRole = role?.reciprocal()
+        val reciprocalLabel = reciprocalRole?.genericLabel ?: label
+        relationshipDao.insert(
+            Relationship(personId = relatedPersonId, relatedPersonId = personId, type = reciprocalLabel, role = reciprocalRole?.name)
+        )
     }
 
+    /** Deletes a relationship row and its mirrored row on the other person's side, if present. */
     suspend fun deleteRelationship(relationshipId: Long) {
         val r = relationshipDao.getById(relationshipId) ?: return
         relationshipDao.delete(r)
+        relationshipDao.findReciprocal(r.personId, r.relatedPersonId)?.let { relationshipDao.delete(it) }
     }
 
     // --- Notes ---
